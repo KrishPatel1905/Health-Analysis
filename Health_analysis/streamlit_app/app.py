@@ -663,7 +663,9 @@ with tab_dashboard:
                     </table>
                 </div>
                 """
-                st.markdown(textwrap.dedent(table_html), unsafe_allow_html=True)
+                # Strip leading whitespace from each line to prevent markdown from rendering it as a code block
+                clean_table_html = "\n".join([line.strip() for line in table_html.splitlines()])
+                st.markdown(clean_table_html, unsafe_allow_html=True)
         else:
             st.warning("We extracted the parameters, but could not structure them in a grid. Please check the raw insights in 'AI Clinical Insights' or review your inputs.")
 
