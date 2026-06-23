@@ -420,7 +420,7 @@ else:
 
 # Advanced Configurations
 with st.sidebar.expander("⚙️ LLM Configs"):
-    llm_model = st.selectbox("Gemini Model", options=["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash", "gemini-2.5-pro"], index=0)
+    llm_model = st.selectbox("Gemini Model", options=["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemma-4-31b-it"], index=0)
     llm_temp = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
 
 # Set model
