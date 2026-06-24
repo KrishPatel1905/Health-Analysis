@@ -212,8 +212,8 @@ html, body, [class*="css"] {
 }
 
 /* Hide default Streamlit GitHub icon, deploy button, menu, and footer */
-#GithubIcon {
-    visibility: hidden;
+#GithubIcon, [data-testid="stHeaderActionElements"] {
+    display: none !important;
 }
 .stDeployButton, .stAppDeployButton {
     display: none !important;
