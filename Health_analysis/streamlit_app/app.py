@@ -210,6 +210,20 @@ html, body, [class*="css"] {
     line-height: 1.7;
     color: #e2e8f0;
 }
+
+/* Hide default Streamlit GitHub icon, deploy button, header, and footer */
+#GithubIcon {
+    visibility: hidden;
+}
+header {
+    visibility: hidden;
+}
+#MainMenu {
+    visibility: hidden;
+}
+footer {
+    visibility: hidden;
+}
 </style>
 """, unsafe_allow_html=True)
 
