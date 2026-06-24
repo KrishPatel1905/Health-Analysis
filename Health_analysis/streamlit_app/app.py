@@ -211,12 +211,12 @@ html, body, [class*="css"] {
     color: #e2e8f0;
 }
 
-/* Hide default Streamlit GitHub icon, deploy button, header, and footer */
+/* Hide default Streamlit GitHub icon, deploy button, menu, and footer */
 #GithubIcon {
     visibility: hidden;
 }
-header {
-    visibility: hidden;
+.stDeployButton, .stAppDeployButton {
+    display: none !important;
 }
 #MainMenu {
     visibility: hidden;
