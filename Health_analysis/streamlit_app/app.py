@@ -429,16 +429,11 @@ else:
 if api_key:
     os.environ["GROQ_API_KEY"] = api_key
 
-# Advanced Configurations
-with st.sidebar.expander("⚙️ LLM Configs"):
-    llm_model = st.selectbox("Groq Model", options=["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"], index=0)
-    llm_temp = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
-
-# Set model
+# Set model with defaults (no UI configs exposed)
 llm = None
 if api_key:
     try:
-        llm = ChatGroq(model=llm_model, temperature=llm_temp, groq_api_key=api_key)
+        llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2, groq_api_key=api_key)
     except Exception as e:
         st.sidebar.error(f"Failed to initialize Groq model: {e}")
 
