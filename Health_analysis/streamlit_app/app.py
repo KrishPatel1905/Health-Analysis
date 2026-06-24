@@ -427,18 +427,27 @@ else:
 
 # Sidebar API Key input
 st.sidebar.subheader("🔑 Groq Credentials")
-api_key_input = st.sidebar.text_input(
-    "Enter Groq API Key", 
-    value=api_key,
-    type="password", 
-    help="Enter your Groq API key here."
-)
-if api_key_input:
-    api_key = api_key_input
-    os.environ["GROQ_API_KEY"] = api_key
+if api_key:
+    st.sidebar.success("🔑 API Key configured successfully.")
+    override_key = st.sidebar.text_input(
+        "Override Groq API Key (Optional)", 
+        type="password", 
+        help="Enter a key here if you want to override the default key loaded from the environment/secrets."
+    )
+    if override_key:
+        api_key = override_key.strip()
+        os.environ["GROQ_API_KEY"] = api_key
+    else:
+        os.environ["GROQ_API_KEY"] = api_key
 else:
-    # Set the key in env so langchain can pick it up automatically
-    os.environ["GROQ_API_KEY"] = api_key
+    api_key_input = st.sidebar.text_input(
+        "Enter Groq API Key", 
+        type="password", 
+        help="Enter your Groq API key here."
+    )
+    if api_key_input:
+        api_key = api_key_input.strip()
+        os.environ["GROQ_API_KEY"] = api_key
 
 # Advanced Configurations
 with st.sidebar.expander("⚙️ LLM Configs"):
