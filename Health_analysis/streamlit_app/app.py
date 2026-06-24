@@ -407,18 +407,22 @@ p_activity = st.sidebar.selectbox("Activity Level", options=["Sedentary", "Moder
 p_goal = st.sidebar.selectbox("Health Focus", options=["Manage Cholesterol", "Blood Sugar Control", "General Wellness", "Weight Loss"])
 
 # API Key handling
-api_key = os.environ.get("GROQ_API_KEY")
+api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("Groq_API_Key") or os.environ.get("groq_api_key")
 if not api_key:
     try:
         if "GROQ_API_KEY" in st.secrets:
             api_key = st.secrets["GROQ_API_KEY"]
+        elif "Groq_API_Key" in st.secrets:
+            api_key = st.secrets["Groq_API_Key"]
         elif "groq_api_key" in st.secrets:
             api_key = st.secrets["groq_api_key"]
     except Exception:
         pass
 
-# Use an empty string if not found in environment or secrets
-if not api_key:
+# Strip whitespaces or quotes if loaded
+if api_key:
+    api_key = api_key.strip().strip("'").strip('"')
+else:
     api_key = ""
 
 # Sidebar API Key input
