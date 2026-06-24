@@ -5,6 +5,7 @@ import os
 import textwrap
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
+import streamlit.components.v1 as components
 
 load_dotenv()
 
@@ -15,6 +16,55 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Best-effort JavaScript to hide the parent Streamlit Cloud header toolbar
+components.html("""
+<script>
+    const hidePlatformElements = () => {
+        try {
+            const parentDoc = window.parent.document;
+            
+            // 1. Hide the header/toolbar entirely
+            const headers = parentDoc.querySelectorAll('header, [data-testid="stHeader"]');
+            headers.forEach(h => {
+                if (h) {
+                    h.style.display = 'none';
+                    h.style.visibility = 'hidden';
+                    h.style.height = '0px';
+                }
+            });
+
+            // 2. Hide any specific links/buttons to github.com
+            const githubLinks = parentDoc.querySelectorAll('a[href*="github.com"]');
+            githubLinks.forEach(link => {
+                if (link) {
+                    link.style.display = 'none';
+                }
+            });
+
+            // 3. Find and hide spans/buttons containing the word 'Fork'
+            const spans = parentDoc.getElementsByTagName('span');
+            for (let i = 0; i < spans.length; i++) {
+                if (spans[i].textContent.includes('Fork')) {
+                    spans[i].style.display = 'none';
+                }
+            }
+            const buttons = parentDoc.getElementsByTagName('button');
+            for (let i = 0; i < buttons.length; i++) {
+                if (buttons[i].textContent.includes('Fork')) {
+                    buttons[i].style.display = 'none';
+                }
+            }
+        } catch (e) {
+            console.log("Streamlit Cloud wrapper is cross-origin. Hiding parent UI elements programmatically is restricted by browser security.");
+        }
+    };
+    
+    // Execute immediately and set intervals to handle dynamic rendering
+    hidePlatformElements();
+    setInterval(hidePlatformElements, 500);
+</script>
+""", height=0, width=0)
 
 # Custom Premium Styling
 st.markdown("""
