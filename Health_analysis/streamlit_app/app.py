@@ -4,7 +4,7 @@ import re
 import os
 import textwrap
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 
 load_dotenv()
 
@@ -374,19 +374,19 @@ Reviewing Physician: Dr. Priya Nair"""
 
 # Initialize Session States
 if 'analyzed' not in st.session_state:
-    st.session_state.analyzed = False
+    st.session_state['analyzed'] = False
 if 'extracted_values' not in st.session_state:
-    st.session_state.extracted_values = ""
+    st.session_state['extracted_values'] = ""
 if 'full_response' not in st.session_state:
-    st.session_state.full_response = ""
+    st.session_state['full_response'] = ""
 if 'df_results' not in st.session_state:
-    st.session_state.df_results = None
+    st.session_state['df_results'] = None
 if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
+    st.session_state['chat_history'] = []
 if 'patient_profile' not in st.session_state:
-    st.session_state.patient_profile = {}
+    st.session_state['patient_profile'] = {}
 if 'blood_report_text' not in st.session_state:
-    st.session_state.blood_report_text = ""
+    st.session_state['blood_report_text'] = ""
 
 # Sidebar Layout & Patient Profiling
 st.sidebar.markdown("""
@@ -407,49 +407,52 @@ p_activity = st.sidebar.selectbox("Activity Level", options=["Sedentary", "Moder
 p_goal = st.sidebar.selectbox("Health Focus", options=["Manage Cholesterol", "Blood Sugar Control", "General Wellness", "Weight Loss"])
 
 # API Key handling
-api_key = os.environ.get("GOOGLE_API_KEY")
+api_key = os.environ.get("GROQ_API_KEY")
 if not api_key:
     try:
-        if "GOOGLE_API_KEY" in st.secrets:
-            api_key = st.secrets["GOOGLE_API_KEY"]
-        elif "google_api_key" in st.secrets:
-            api_key = st.secrets["google_api_key"]
+        if "GROQ_API_KEY" in st.secrets:
+            api_key = st.secrets["GROQ_API_KEY"]
+        elif "groq_api_key" in st.secrets:
+            api_key = st.secrets["groq_api_key"]
     except Exception:
         pass
 
-# Sidebar API Key input if not found in environment or secrets
+# Use an empty string if not found in environment or secrets
 if not api_key:
-    st.sidebar.subheader("🔑 Gemini Credentials")
-    api_key_input = st.sidebar.text_input(
-        "Enter Gemini API Key", 
-        type="password", 
-        help="Get an API key from Google AI Studio. It is kept secure and only used for your session."
-    )
-    if api_key_input:
-        api_key = api_key_input
-        os.environ["GOOGLE_API_KEY"] = api_key
+    api_key = ""
+
+# Sidebar API Key input
+st.sidebar.subheader("🔑 Groq Credentials")
+api_key_input = st.sidebar.text_input(
+    "Enter Groq API Key", 
+    value=api_key,
+    type="password", 
+    help="Enter your Groq API key here."
+)
+if api_key_input:
+    api_key = api_key_input
+    os.environ["GROQ_API_KEY"] = api_key
 else:
     # Set the key in env so langchain can pick it up automatically
-    os.environ["GOOGLE_API_KEY"] = api_key
+    os.environ["GROQ_API_KEY"] = api_key
 
 # Advanced Configurations
 with st.sidebar.expander("⚙️ LLM Configs"):
-    llm_model = st.selectbox("Gemini Model", options=["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemma-4-31b-it"], index=0)
+    llm_model = st.selectbox("Groq Model", options=["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"], index=0)
     llm_temp = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
 
 # Set model
 llm = None
 if api_key:
     try:
-        llm = ChatGoogleGenerativeAI(model=llm_model, temperature=llm_temp)
+        llm = ChatGroq(model=llm_model, temperature=llm_temp, groq_api_key=api_key)
     except Exception as e:
-        st.sidebar.error(f"Failed to initialize Gemini model: {e}")
+        st.sidebar.error(f"Failed to initialize Groq model: {e}")
 
 # Main Title Header
 col_header, col_logo = st.columns([8, 2])
 with col_header:
     st.markdown("<h1 style='margin-bottom: 0;'>Blood Work Analyzer</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='font-size: 1.1rem; color: #8c9ba5; margin-top: 5px;'>Smart extraction, visualization, and custom dietary counseling driven by Gemini.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
 # Tab setups
@@ -503,7 +506,7 @@ with tab_input:
         if not blood_report.strip():
             st.warning("Please paste a report or upload a file first!")
         elif not llm:
-            st.error("🔑 Gemini API Key is required. Please set the GOOGLE_API_KEY environment variable, configure it in Streamlit Secrets, or enter it in the sidebar.")
+            st.error("🔑 Groq API Key is required. Please set the GROQ_API_KEY environment variable, configure it in Streamlit Secrets, or enter it in the sidebar.")
         else:
             # Save patient profile to session
             st.session_state.patient_profile = {
@@ -530,10 +533,15 @@ Blood Report:
 """
                 try:
                     extraction_response = llm.invoke(extraction_prompt)
-                    st.session_state.extracted_values = extraction_response.text
-                    st.session_state.df_results = parse_extracted_values(st.session_state.extracted_values)
+                    st.session_state['extracted_values'] = extraction_response.text
+                    st.session_state['df_results'] = parse_extracted_values(st.session_state['extracted_values'])
                 except Exception as ex:
-                    st.error(f"Error executing Stage 1 Extraction: {ex}")
+                    error_msg = str(ex)
+                    if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "quota" in error_msg.lower():
+                        st.error("⚠️ **Gemini API Rate Limit / Quota Exceeded (429)**: You have exceeded the free tier quota for this Gemini model. Please wait a few minutes before retrying, change the Gemini model configuration in the sidebar, or configure a different API key.")
+                    else:
+                        st.error(f"Error executing Stage 1 Extraction: {ex}")
+                    st.stop()
             
             with st.spinner("Step 2: Synthesizing clinical insights and Indian diet plan..."):
                 diet_prompt = f"""
@@ -542,7 +550,7 @@ You are an expert clinical nutritionist specializing in Indian dietary habits an
 Analyze the following blood work results for a {p_age}-year-old {p_gender} with a {p_diet} diet preference, activity level '{p_activity}', and primary health goal '{p_goal}'.
 
 Blood Work Results:
-{st.session_state.extracted_values}
+{st.session_state.get('extracted_values', '')}
 
 Provide the output in exactly the following structure:
 
@@ -569,27 +577,32 @@ Dinner: Meal details;
 """
                 try:
                     diet_response = llm.invoke(diet_prompt)
-                    st.session_state.full_response = diet_response.text
-                    st.session_state.analyzed = True
+                    st.session_state['full_response'] = diet_response.text
+                    st.session_state['analyzed'] = True
                     # Reset chat history for the new report
-                    st.session_state.chat_history = []
+                    st.session_state['chat_history'] = []
                     
                     # Rerun to switch to view dashboard
                     st.success("Analysis complete!")
                     st.rerun()
                 except Exception as ex:
-                    st.error(f"Error executing Stage 2 Analysis: {ex}")
+                    error_msg = str(ex)
+                    if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg or "quota" in error_msg.lower():
+                        st.error("⚠️ **Gemini API Rate Limit / Quota Exceeded (429)**: You have exceeded the free tier quota for this Gemini model. Please wait a few minutes before retrying, change the Gemini model configuration in the sidebar, or configure a different API key.")
+                    else:
+                        st.error(f"Error executing Stage 2 Analysis: {ex}")
+                    st.stop()
 
 # ----------------- TAB 2: HEALTH DASHBOARD -----------------
 with tab_dashboard:
-    if not st.session_state.analyzed:
+    if not st.session_state.get('analyzed', False):
         st.info("Please submit your report in the 'Upload & Input' tab to view the dashboard.")
     else:
-        profile = st.session_state.patient_profile
+        profile = st.session_state.get('patient_profile', {})
         st.subheader(f"Dashboard: {profile.get('name', 'Patient')}'s Metrics")
         
         # Calculate summary numbers
-        df = st.session_state.df_results
+        df = st.session_state.get('df_results')
         
         if df is not None and not df.empty:
             total_count = len(df)
@@ -685,13 +698,13 @@ with tab_dashboard:
 
 # ----------------- TAB 3: INSIGHTS -----------------
 with tab_insights:
-    if not st.session_state.analyzed:
+    if not st.session_state.get('analyzed', False):
         st.info("Please submit your report in the 'Upload & Input' tab to view insights.")
     else:
         st.subheader("💡 AI Medical Summary")
         
         # Parse Response
-        health_summary, foods_include, foods_avoid, meal_plan = parse_diet_response(st.session_state.full_response)
+        health_summary, foods_include, foods_avoid, meal_plan = parse_diet_response(st.session_state.get('full_response', ''))
         
         st.markdown(textwrap.dedent(f"""
         <div class="summary-container">
@@ -704,12 +717,12 @@ with tab_insights:
 
 # ----------------- TAB 4: DIET PLAN -----------------
 with tab_diet:
-    if not st.session_state.analyzed:
+    if not st.session_state.get('analyzed', False):
         st.info("Please submit your report in the 'Upload & Input' tab to view your diet planner.")
     else:
         st.subheader("🥗 Personalized Indian Diet Plan")
         
-        health_summary, foods_include, foods_avoid, meal_plan = parse_diet_response(st.session_state.full_response)
+        health_summary, foods_include, foods_avoid, meal_plan = parse_diet_response(st.session_state.get('full_response', ''))
         
         # Display Foods to Include & Avoid side-by-side
         include_items_html = "".join([f"<li><strong>{item}</strong>: {desc}</li>" for item, desc in foods_include])
@@ -748,17 +761,19 @@ with tab_diet:
         st.write("Download this complete clinical insights sheet and Indian diet blueprint as a formatted Markdown report.")
         
         # Generate MD content
+        profile = st.session_state.get('patient_profile', {})
         md_text = f"""# Clinical Diagnostics & Indian Diet Plan
-**Patient:** {st.session_state.patient_profile.get('name')} | **Age:** {st.session_state.patient_profile.get('age')} | **Gender:** {st.session_state.patient_profile.get('gender')}
-**Dietary Goal:** {st.session_state.patient_profile.get('goal')} ({st.session_state.patient_profile.get('diet')})
+**Patient:** {profile.get('name', 'Patient')} | **Age:** {profile.get('age', '')} | **Gender:** {profile.get('gender', '')}
+**Dietary Goal:** {profile.get('goal', '')} ({profile.get('diet', '')})
 ---
 ## 💡 Medical Overview Summary
 {health_summary}
 
 ## 📊 Extracted Parameters
 """
-        if st.session_state.df_results is not None:
-            for idx, row in st.session_state.df_results.iterrows():
+        df_results = st.session_state.get('df_results')
+        if df_results is not None:
+            for idx, row in df_results.iterrows():
                 md_text += f"- **{row['Test Name']}**: {row['Value']} | {row['Status']} (Ref: {row['Reference Range']})\n"
                 
         md_text += "\n## 👍 Recommended Indian Foods to Include\n"
@@ -775,17 +790,19 @@ with tab_diet:
             
         md_text += "\n---\n*Disclaimer: AI health summary report. Discuss with your primary healthcare physician.*"
         
+        profile = st.session_state.get('patient_profile', {})
+        patient_name = profile.get('name', 'Patient').replace(' ', '_')
         st.download_button(
             label="⬇️ Download Markdown Report",
             data=md_text,
-            file_name=f"BloodWorkAnalysis_{st.session_state.patient_profile.get('name').replace(' ', '_')}.md",
+            file_name=f"BloodWorkAnalysis_{patient_name}.md",
             mime="text/markdown",
             use_container_width=True
         )
 
 # ----------------- TAB 5: AI CHATBOT -----------------
 with tab_chat:
-    if not st.session_state.analyzed:
+    if not st.session_state.get('analyzed', False):
         st.info("Please submit your report in the 'Upload & Input' tab to unlock the chat assistant.")
     else:
         st.subheader("💬 Ask AI Assistant")
@@ -795,46 +812,53 @@ with tab_chat:
             st.warning("🔑 Gemini API Key is missing. Please configure it in the sidebar or app secrets to enable the chatbot.")
             
         # Render past conversations
-        for message in st.session_state.chat_history:
+        chat_history = st.session_state.get('chat_history', [])
+        for message in chat_history:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
                 
         # Ask user input
         if prompt := st.chat_input("Ask: e.g., 'What is ALT and why is it normal?' or 'Can I eat paneer with my cholesterol profile?'"):
-            st.session_state.chat_history.append({"role": "user", "content": prompt})
+            chat_history = st.session_state.get('chat_history', [])
+            chat_history.append({"role": "user", "content": prompt})
+            st.session_state['chat_history'] = chat_history
             with st.chat_message("user"):
                 st.markdown(prompt)
                 
             with st.chat_message("assistant"):
                 if not llm:
-                    st.error("🔑 Gemini API Key is required to chat with the AI assistant.")
+                    st.error("🔑 Groq API Key is required to chat with the AI assistant.")
                     st.stop()
                 
                 with st.spinner("Analyzing profile & medical records..."):
+                    profile = st.session_state.get('patient_profile', {})
+                    extracted_values = st.session_state.get('extracted_values', '')
+                    full_response = st.session_state.get('full_response', '')
                     # Prepare system instruction prompt
                     system_instructions = f"""
 You are a clinical health assistant. You are chatting with a patient who recently analyzed their blood work.
 
 Patient Profile:
-- Name: {st.session_state.patient_profile.get('name')}
-- Age: {st.session_state.patient_profile.get('age')}
-- Gender: {st.session_state.patient_profile.get('gender')}
-- Diet: {st.session_state.patient_profile.get('diet')}
-- Activity level: {st.session_state.patient_profile.get('activity')}
-- Goal: {st.session_state.patient_profile.get('goal')}
+- Name: {profile.get('name', 'Patient')}
+- Age: {profile.get('age', '')}
+- Gender: {profile.get('gender', '')}
+- Diet: {profile.get('diet', '')}
+- Activity level: {profile.get('activity', '')}
+- Goal: {profile.get('goal', '')}
 
 Blood Work Summary:
-{st.session_state.extracted_values}
+{extracted_values}
 
 Diet Plan & Clinical Insights:
-{st.session_state.full_response}
+{full_response}
 
 Answer the patient's questions accurately, supportively, and informatively. Focus on commonly available Indian diets/foods when suggesting items. 
 Always include a clear disclaimer stating you are an AI assistant and they should consult a real medical doctor for diagnosis.
 """
                     # Assemble chatbot conversation history for LLM
                     chat_context = f"{system_instructions}\n\nChat History:\n"
-                    for past_msg in st.session_state.chat_history[-8:]: # keep context short
+                    chat_history = st.session_state.get('chat_history', [])
+                    for past_msg in chat_history[-8:]: # keep context short
                         chat_context += f"{past_msg['role'].upper()}: {past_msg['content']}\n"
                     chat_context += "ASSISTANT: "
                     
@@ -842,6 +866,8 @@ Always include a clear disclaimer stating you are an AI assistant and they shoul
                         response = llm.invoke(chat_context)
                         ai_answer = response.text
                         st.markdown(ai_answer)
-                        st.session_state.chat_history.append({"role": "assistant", "content": ai_answer})
+                        chat_history = st.session_state.get('chat_history', [])
+                        chat_history.append({"role": "assistant", "content": ai_answer})
+                        st.session_state['chat_history'] = chat_history
                     except Exception as err:
                         st.error(f"Chatbot failed to respond: {err}")
